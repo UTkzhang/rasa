@@ -80,6 +80,7 @@ SECTION_NLU = Section(
 )
 SECTION_NLG = Section(name="NLG templates", relevant_keys=[FINGERPRINT_NLG_KEY])
 
+# TODO: fine-tuning section?
 
 class FingerprintComparisonResult:
     def __init__(
@@ -334,22 +335,49 @@ async def model_fingerprint(file_importer: "TrainingDataImporter") -> Fingerprin
         FINGERPRINT_STORIES_KEY: stories.fingerprint(),
         FINGERPRINT_TRAINED_AT_KEY: time.time(),
         FINGERPRINT_RASA_VERSION_KEY: rasa.__version__,
+        # TODO: fine-tuning section?
     }
+
+
+"""
+- Model config of the previous checkpoint should be exactly the same as the new config, except for the number of epochs of ML components like DIETClassifier, ResponseSelector and TEDPolicy
+    - just exclude sub key "epochs"?
+- The labels for each ML component should also be the same between the two versions of data the models are trained on
+    - labels: entity names, intent names, action names
+    - they also need the same order!
+    - Is this just the normal domain fingerprint?
+- Previous checkpoint trained with the “MINIMUM_COMPATIBLE_VERSION” of Rasa Open Source.
+    `PolicyEnsemble.load/ensure_model_compatibility` and `Interpreter.load/ensure_model_compatibility`
+"""
 
 
 def _get_fingerprint_of_config(
     config: Optional[Dict[Text, Any]],
     include_keys: Optional[List[Text]] = None,
     exclude_keys: Optional[List[Text]] = None,
+    include_subkeys: Optional[List[Text]] = None,
+    exclude_subkeys: Optional[List[Text]] = None,
 ) -> Text:
     if not config:
         return ""
 
-    keys = include_keys or list(filter(lambda k: k not in exclude_keys, config.keys()))
-
-    sub_config = {k: config[k] for k in keys if k in config}
+    # TODO: use . syntax?
+    sub_config = get_dict_subset(config, include_keys, exclude_keys, include_subkeys, exclude_subkeys)
 
     return rasa.shared.utils.io.deep_container_fingerprint(sub_config)
+
+
+def get_dict_subset(
+    config: Optional[Dict[Text, Any]],
+    include_keys: Optional[List[Text]] = None,
+    exclude_keys: Optional[List[Text]] = None,
+    include_subkeys: Optional[List[Text]] = None,
+    exclude_subkeys: Optional[List[Text]] = None,
+
+):
+    keys = include_keys or list(filter(lambda k: k not in exclude_keys, config.keys()))
+    sub_config = {k: get_dict_subset(config[k], include_subkeys, exclude_subkeys) for k in keys if k in config}
+    return sub_config
 
 
 def fingerprint_from_path(model_path: Text) -> Fingerprint:

@@ -1,3 +1,5 @@
+# TODO: should this be rasa/tests/test_model.py?
+
 import asyncio
 import os
 import tempfile
@@ -418,3 +420,5 @@ async def test_update_with_new_domain(trained_rasa_model: Text, tmpdir: Path):
     actual = Domain.load(tmpdir / DEFAULT_CORE_SUBDIRECTORY_NAME / DEFAULT_DOMAIN_PATH)
 
     assert actual.is_empty()
+
+# TODO test here
